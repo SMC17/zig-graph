@@ -177,3 +177,13 @@ medium graph.
 ## License
 
 MIT. See `LICENSE`.
+
+## Part of the Sovereign Stack
+
+This is one of a set of small, composable Zig libraries.
+
+- [**zig-cobs**](https://github.com/SMC17/zig-cobs) — COBS byte-stuffing framing, zero-alloc
+- [**zig-frame-protocol**](https://github.com/SMC17/zig-frame-protocol) — versioned binary frame protocol
+- [**zig-h3**](https://github.com/SMC17/zig-h3) — H3 v4 spatial index (composes naturally with graph algorithms over cell adjacency)
+
+See [github.com/SMC17](https://github.com/SMC17) for the full portfolio.
