@@ -47,7 +47,7 @@ Add to `build.zig.zon`:
 ```zig
 .dependencies = .{
     .graph = .{
-        .url = "https://example.invalid/zig-graph-v0.1.0.tar.gz",
+        .url = "https://github.com/SMC17/zig-graph/archive/refs/tags/v0.1.0.tar.gz",
         .hash = "...",
     },
 },
