@@ -28,6 +28,7 @@
 const std = @import("std");
 
 const traversal = @import("traversal.zig");
+const centrality = @import("centrality.zig");
 
 // ---- traversal re-exports ----
 
@@ -39,6 +40,12 @@ pub const Neighbor = traversal.Neighbor;
 pub const Adjacency = traversal.Adjacency;
 pub const buildAdjacency = traversal.buildAdjacency;
 pub const buildDirectedAdjacency = traversal.buildDirectedAdjacency;
+
+// ---- centrality re-exports ----
+
+pub const BetweennessOptions = centrality.BetweennessOptions;
+pub const betweennessCentrality = centrality.betweennessCentrality;
+pub const closenessCentrality = centrality.closenessCentrality;
 
 pub const Edge = struct {
     source: usize,
@@ -243,6 +250,7 @@ pub fn conductance(
 
 comptime {
     _ = traversal;
+    _ = centrality;
 }
 
 const testing = std.testing;
