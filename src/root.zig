@@ -29,6 +29,7 @@ const std = @import("std");
 
 const traversal = @import("traversal.zig");
 const centrality = @import("centrality.zig");
+const spectral = @import("spectral.zig");
 
 // ---- traversal re-exports ----
 
@@ -46,6 +47,14 @@ pub const buildDirectedAdjacency = traversal.buildDirectedAdjacency;
 pub const BetweennessOptions = centrality.BetweennessOptions;
 pub const betweennessCentrality = centrality.betweennessCentrality;
 pub const closenessCentrality = centrality.closenessCentrality;
+
+// ---- spectral re-exports ----
+
+pub const FiedlerOptions = spectral.FiedlerOptions;
+pub const FiedlerResult = spectral.FiedlerResult;
+pub const fiedler = spectral.fiedler;
+pub const fiedlerValue = spectral.fiedlerValue;
+pub const fiedlerVector = spectral.fiedlerVector;
 
 pub const Edge = struct {
     source: usize,
@@ -251,6 +260,7 @@ pub fn conductance(
 comptime {
     _ = traversal;
     _ = centrality;
+    _ = spectral;
 }
 
 const testing = std.testing;
