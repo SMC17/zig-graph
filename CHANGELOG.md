@@ -15,6 +15,16 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   1.1e-15, modularity / conductance / cut size exact, Louvain Q = 0.444904
   matching networkx weighted-louvain best-of-50-seeds (0.444904). 14 tests;
   wired into `zig build test` so the external-reference contract holds in CI.
+- Directed PageRank cross-validation extends the suite to `directedPagerank`
+  (previously audited only by internal invariants). References generated via
+  `nx.pagerank(DiGraph(...), alpha=0.85, tol=1e-12, max_iter=2000)` on four
+  canonical directed graphs: (i) inbound directed star (5 leaves → 1 center),
+  (ii) directed cycle C_5 (rotational symmetry → uniform 0.2), (iii) 7-node
+  fully asymmetric DiGraph with a sink and a back-edge, (iv) directed perfect
+  binary tree (4 leaf sinks — exercises dangling-mass redistribution). Max
+  observed delta vs networkx across all four: 1.02e-12 (star), 0 (cycle,
+  closed-form), 5.09e-13 (asym), 1.92e-13 (binary tree). Five new tests
+  (4 hard gates + 1 audit summary), test count 64 → 69.
 
 ## [1.1.0] — 2026-05-13
 

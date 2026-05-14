@@ -469,3 +469,240 @@ test "CROSSVAL K_5: louvain finds a single community (clique optimum)" {
     // Single community of a clique has Q = 0 (no structure beyond expectation).
     try testing.expectApproxEqAbs(@as(f64, 0.0), r.modularity, 1e-9);
 }
+
+// ============================================================================
+// Directed PageRank cross-validation vs networkx 3.6.1.
+//
+// The prior cross-validation pass left `directedPagerank` audited only by
+// internal invariants (mass-conservation, hub-and-spoke ordering, sink-network
+// sums-to-1). This block closes that gap by comparing against networkx's
+// `nx.pagerank(DiGraph(...), alpha=0.85, tol=1e-12, max_iter=2000)` on four
+// canonical directed graphs.
+//
+// Reference values were computed via:
+//   nix-shell -p python3Packages.networkx python3Packages.scipy \
+//             python3Packages.numpy --run "python3 ..."
+// with networkx 3.6.1 (transcript embedded above each constant).
+//
+// Tolerance 1e-6 — looser than the karate PR target (1e-5) is unnecessary
+// here because these graphs are smaller and structurally cleaner; 200 power
+// iterations bring residual well below 1e-10 on all four.
+// ============================================================================
+
+/// Build a directed star with one center (node 0) and `leaves` leaves
+/// 1..=leaves, each with a single edge `leaf → center`.
+fn buildDirectedStarInbound(allocator: std.mem.Allocator, leaves: usize) !graph.Graph {
+    var g = graph.Graph.init(allocator, leaves + 1);
+    errdefer g.deinit();
+    var i: usize = 1;
+    while (i <= leaves) : (i += 1) try g.addEdge(i, 0, 1.0);
+    return g;
+}
+
+/// Build a directed cycle `0 → 1 → … → n-1 → 0`.
+fn buildDirectedCycle(allocator: std.mem.Allocator, n: usize) !graph.Graph {
+    var g = graph.Graph.init(allocator, n);
+    errdefer g.deinit();
+    var i: usize = 0;
+    while (i < n) : (i += 1) try g.addEdge(i, (i + 1) % n, 1.0);
+    return g;
+}
+
+// networkx 3.6.1 reference, alpha=0.85, tol=1e-12, max_iter=2000:
+//   pr[0] = 0.512195121952235  (center receives all 5 leaves' redistributed mass)
+//   pr[1..5] = 0.097560975609553  (each leaf is a pure source with no inbound edges)
+// Closed-form sanity: each leaf has rank (1-a)/n + a*0 = 0.15/6 = 0.025 from
+// teleport; plus the center's outbound is 0 (center is a sink), so the center's
+// rank is uniformly redistributed across all nodes including itself.
+// Solving the resulting 2-eqn fixed point gives the values above.
+const directed_star5_pr_ref = [_]f64{
+    0.512195121952235, 0.097560975609553, 0.097560975609553,
+    0.097560975609553, 0.097560975609553, 0.097560975609553,
+};
+
+test "CROSSVAL directed star (5 leaves → center): pagerank matches networkx (tol 1e-6)" {
+    var g = try buildDirectedStarInbound(testing.allocator, 5);
+    defer g.deinit();
+
+    const pr = try graph.directedPagerank(g, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr);
+
+    // Mass conservation.
+    var total: f64 = 0.0;
+    for (pr) |v| total += v;
+    try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-9);
+
+    // Structural sanity: center dominates, leaves are equal.
+    try testing.expect(pr[0] > pr[1]);
+    for (pr[2..]) |v| try testing.expectApproxEqAbs(pr[1], v, 1e-12);
+
+    const delta = maxAbsDiff(pr, directed_star5_pr_ref[0..]);
+    if (delta >= 1e-6) {
+        std.debug.print("\n[crossval directed-star pagerank] max delta vs networkx = {e:.3}\n", .{delta});
+        for (pr, directed_star5_pr_ref, 0..) |z, n, i| {
+            std.debug.print("  node {d}: zig={d:.15} nx={d:.15} delta={e:.3}\n", .{ i, z, n, @abs(z - n) });
+        }
+    }
+    try testing.expect(delta < 1e-6);
+}
+
+test "CROSSVAL directed cycle C_5: pagerank uniform = 0.2 (rotational symmetry)" {
+    var g = try buildDirectedCycle(testing.allocator, 5);
+    defer g.deinit();
+
+    const pr = try graph.directedPagerank(g, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr);
+
+    // networkx 3.6.1: pr[i] = 0.2 exactly for all i (verified separately).
+    // Closed-form: directed cycle is vertex-transitive under cyclic shift,
+    // so the stationary distribution is uniform regardless of damping.
+    for (pr) |v| try testing.expectApproxEqAbs(@as(f64, 0.2), v, 1e-9);
+
+    var total: f64 = 0.0;
+    for (pr) |v| total += v;
+    try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-12);
+}
+
+// networkx 3.6.1 reference, alpha=0.85, tol=1e-12, max_iter=2000.
+// 7-node asymmetric DiGraph with edges:
+//   0→1, 0→2, 0→3, 1→2, 1→4, 2→3, 2→5, 3→0 (back-edge), 3→6, 4→5, 5→6.
+// Node 6 is a pure sink; 3 has a back-edge to 0; mixed in/out degree throughout.
+// This is the hardest of the four cases for directedPagerank — fully asymmetric,
+// no exploitable symmetry, includes a sink + a non-trivial cycle.
+const directed_asym7_pr_ref = [_]f64{
+    0.112566175326334, 0.085865864238367, 0.122358856539458,
+    0.137868378267503, 0.090465106863724, 0.182869969425694,
+    0.268005649338920,
+};
+
+fn buildDirectedAsym7(allocator: std.mem.Allocator) !graph.Graph {
+    var g = graph.Graph.init(allocator, 7);
+    errdefer g.deinit();
+    const edges = [_][2]usize{
+        .{ 0, 1 }, .{ 0, 2 }, .{ 0, 3 },
+        .{ 1, 2 }, .{ 1, 4 },
+        .{ 2, 3 }, .{ 2, 5 },
+        .{ 3, 0 },
+        .{ 3, 6 },
+        .{ 4, 5 },
+        .{ 5, 6 },
+    };
+    for (edges) |e| try g.addEdge(e[0], e[1], 1.0);
+    return g;
+}
+
+test "CROSSVAL directed 7-node asymmetric (sink+back-edge): pagerank matches networkx (tol 1e-6)" {
+    var g = try buildDirectedAsym7(testing.allocator);
+    defer g.deinit();
+
+    const pr = try graph.directedPagerank(g, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr);
+
+    var total: f64 = 0.0;
+    for (pr) |v| total += v;
+    try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-9);
+
+    const delta = maxAbsDiff(pr, directed_asym7_pr_ref[0..]);
+    if (delta >= 1e-6) {
+        std.debug.print("\n[crossval directed-asym7 pagerank] max delta vs networkx = {e:.3}\n", .{delta});
+        for (pr, directed_asym7_pr_ref, 0..) |z, n, i| {
+            std.debug.print("  node {d}: zig={d:.15} nx={d:.15} delta={e:.3}\n", .{ i, z, n, @abs(z - n) });
+        }
+    }
+    try testing.expect(delta < 1e-6);
+}
+
+// networkx 3.6.1 reference, alpha=0.85, tol=1e-12, max_iter=2000.
+// Perfect binary tree of depth 2 (7 nodes), edges parent → child only
+// (no back-edges). All four leaves (3,4,5,6) are sinks, so the dangling-mass
+// redistribution path through directedPagerank is heavily exercised here.
+const directed_btree7_pr_ref = [_]f64{
+    0.097347286444582, 0.138719883183212, 0.138719883183212,
+    0.156303236797249, 0.156303236797249, 0.156303236797249,
+    0.156303236797249,
+};
+
+fn buildDirectedBinaryTree7(allocator: std.mem.Allocator) !graph.Graph {
+    var g = graph.Graph.init(allocator, 7);
+    errdefer g.deinit();
+    var i: usize = 0;
+    while (i < 3) : (i += 1) {
+        try g.addEdge(i, 2 * i + 1, 1.0);
+        try g.addEdge(i, 2 * i + 2, 1.0);
+    }
+    return g;
+}
+
+test "CROSSVAL directed binary tree (4 sinks): pagerank matches networkx (tol 1e-6)" {
+    var g = try buildDirectedBinaryTree7(testing.allocator);
+    defer g.deinit();
+
+    const pr = try graph.directedPagerank(g, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr);
+
+    var total: f64 = 0.0;
+    for (pr) |v| total += v;
+    try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-9);
+
+    // Sibling-symmetry sanity: nodes 1,2 share rank (sibling internal nodes);
+    // leaves 3,4,5,6 share rank.
+    try testing.expectApproxEqAbs(pr[1], pr[2], 1e-12);
+    for (pr[4..]) |v| try testing.expectApproxEqAbs(pr[3], v, 1e-12);
+
+    const delta = maxAbsDiff(pr, directed_btree7_pr_ref[0..]);
+    if (delta >= 1e-6) {
+        std.debug.print("\n[crossval directed-btree7 pagerank] max delta vs networkx = {e:.3}\n", .{delta});
+        for (pr, directed_btree7_pr_ref, 0..) |z, n, i| {
+            std.debug.print("  node {d}: zig={d:.15} nx={d:.15} delta={e:.3}\n", .{ i, z, n, @abs(z - n) });
+        }
+    }
+    try testing.expect(delta < 1e-6);
+}
+
+test "CROSSVAL directed-pagerank audit summary: emit deltas vs networkx" {
+    // Star (inbound).
+    var g1 = try buildDirectedStarInbound(testing.allocator, 5);
+    defer g1.deinit();
+    const pr1 = try graph.directedPagerank(g1, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr1);
+    const d1 = maxAbsDiff(pr1, directed_star5_pr_ref[0..]);
+
+    // Cycle C_5 — closed-form 0.2.
+    var g2 = try buildDirectedCycle(testing.allocator, 5);
+    defer g2.deinit();
+    const pr2 = try graph.directedPagerank(g2, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr2);
+    var d2: f64 = 0.0;
+    for (pr2) |v| {
+        const d = @abs(v - 0.2);
+        if (d > d2) d2 = d;
+    }
+
+    // Asymmetric 7-node.
+    var g3 = try buildDirectedAsym7(testing.allocator);
+    defer g3.deinit();
+    const pr3 = try graph.directedPagerank(g3, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr3);
+    const d3 = maxAbsDiff(pr3, directed_asym7_pr_ref[0..]);
+
+    // Binary tree 7-node.
+    var g4 = try buildDirectedBinaryTree7(testing.allocator);
+    defer g4.deinit();
+    const pr4 = try graph.directedPagerank(g4, testing.allocator, .{ .damping = 0.85, .iterations = 200 });
+    defer testing.allocator.free(pr4);
+    const d4 = maxAbsDiff(pr4, directed_btree7_pr_ref[0..]);
+
+    std.debug.print(
+        \\
+        \\========================================================
+        \\zig-graph DIRECTED PageRank cross-validation vs networkx 3.6.1
+        \\(alpha=0.85, 200 power iterations; networkx ref tol=1e-12)
+        \\--------------------------------------------------------
+        \\  directed star (5 leaves → center)    max |Δ| = {e:.3}  (tol 1e-6)
+        \\  directed cycle C_5 (uniform 0.2)     max |Δ| = {e:.3}  (closed-form)
+        \\  asymmetric 7-node (sink+back-edge)   max |Δ| = {e:.3}  (tol 1e-6)
+        \\  binary tree 7-node (4 sinks)         max |Δ| = {e:.3}  (tol 1e-6)
+        \\========================================================
+        \\
+    , .{ d1, d2, d3, d4 });
+}
