@@ -1,4 +1,5 @@
-//! Sparse undirected graph primitives and spectral algorithms.
+//! Sparse graph primitives, spectral, centrality, community and traversal
+//! algorithms.
 //!
 //! A `Graph` is a count of nodes (IDs are `0..node_count`) plus an edge list
 //! `{source, target, weight}`. Edges are treated as **undirected** — each
@@ -25,6 +26,19 @@
 //! allocator and return ownership to the caller (free with `allocator.free`).
 
 const std = @import("std");
+
+const traversal = @import("traversal.zig");
+
+// ---- traversal re-exports ----
+
+pub const bfs = traversal.bfs;
+pub const dfs = traversal.dfs;
+pub const sssp = traversal.sssp;
+pub const bfsPath = traversal.bfsPath;
+pub const Neighbor = traversal.Neighbor;
+pub const Adjacency = traversal.Adjacency;
+pub const buildAdjacency = traversal.buildAdjacency;
+pub const buildDirectedAdjacency = traversal.buildDirectedAdjacency;
 
 pub const Edge = struct {
     source: usize,
@@ -226,6 +240,10 @@ pub fn conductance(
 }
 
 // ---- tests ----
+
+comptime {
+    _ = traversal;
+}
 
 const testing = std.testing;
 
