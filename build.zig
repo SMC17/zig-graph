@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
     // Benchmarks — separate step (`zig build bench`) so `zig build test`
     // stays fast. Always built in ReleaseFast so numbers reflect optimised
     // codegen regardless of the user's top-level optimize flag.
-    const bench_step = b.step("bench", "Run PageRank / centrality / construct throughput benchmarks");
+    const bench_step = b.step("bench", "Run PageRank / centrality / construct / betweenness / louvain / fiedler benchmarks");
     const bench_sources = [_]struct {
         name: []const u8,
         path: []const u8,
@@ -44,6 +44,9 @@ pub fn build(b: *std.Build) void {
         .{ .name = "bench-pagerank", .path = "bench/bench_pagerank.zig" },
         .{ .name = "bench-centrality", .path = "bench/bench_centrality.zig" },
         .{ .name = "bench-construct", .path = "bench/bench_construct.zig" },
+        .{ .name = "bench-betweenness", .path = "bench/bench_betweenness.zig" },
+        .{ .name = "bench-louvain", .path = "bench/bench_louvain.zig" },
+        .{ .name = "bench-fiedler", .path = "bench/bench_fiedler.zig" },
     };
     for (bench_sources) |bs| {
         const bench_mod = b.createModule(.{
