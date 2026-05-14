@@ -23,6 +23,10 @@ bounds (`0 ≤ λ₁ ≤ 2·max_deg`).
 
 Minimum Zig version: `0.16.0`. Tested on Zig `0.16.0`.
 
+CI covers Linux x86_64, Linux aarch64, and macOS arm64 (native runners), plus
+cross-compile sanity for `aarch64-linux-gnu`, `aarch64-macos`,
+`x86_64-linux-gnu`, and `x86_64-macos` from the x86_64 host.
+
 ## Algorithms
 
 | Function | What it computes |
