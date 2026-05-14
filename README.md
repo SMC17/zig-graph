@@ -1,5 +1,7 @@
 # zig-graph
 
+[![CI](https://github.com/SMC17/zig-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/SMC17/zig-graph/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/SMC17/zig-graph?display_name=tag&sort=semver)](https://github.com/SMC17/zig-graph/releases) [![License](https://img.shields.io/github/license/SMC17/zig-graph)](LICENSE)
+
 Sparse undirected graph primitives and spectral algorithms in pure Zig. No
 dependencies, no allocation hidden from the caller, suitable for hosts and
 servers that need centrality / PageRank / cut-based partition scoring on
