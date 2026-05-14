@@ -8,6 +8,33 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Mutation-testing harness (`tools/mutation-test.sh`) applying 14 hand-picked
+  operators across `src/{root, spectral, community, centrality}.zig`. Targets
+  the numerical-algorithm code that the cross-validation suite probes but
+  doesn't fully kill: PageRank damping sign + base mass, eigenvector
+  power-iteration norm check, Fiedler Rayleigh-quotient cross-term
+  coefficient, Louvain self-loop weighted-degree coefficient, Brandes
+  betweenness undirected-halving and recurrence base case. Result on this
+  commit: **11 killed / 3 survived (78.6%)** with all three survivors
+  honestly classified:
+  * `M05 eigenvectorCentrality iterations halved` — real-narrow gap; the
+    1e-4 cross-val tolerance is just loose enough to admit 16 power-iteration
+    steps where 32 is the default. Not a real algorithm bug.
+  * `M09 Fiedler tau drops +1 safety margin` — equivalent mutant; the
+    deflation step removes the all-ones mode regardless of tau as long as
+    2·max_deg ≥ λ_max(L), which holds by Gershgorin.
+  * `M11 Louvain best-gain comparator > to >=` — equivalent mutant for
+    floating-point inputs; the boundary `gain_rel == best_gain + tolerance`
+    is a measure-zero event on real graphs.
+- New regression test in `src/community.zig`:
+  `louvain self-loop weighted-degree: heavy self-loop forces singleton`.
+  Constructs a barbell-6 with a heavy self-loop (weight 5) on node 0 and
+  asserts that node 0 forms its own community (the modularity-optimal
+  partition under correct undirected-self-loop degree accounting). Kills
+  mutation `M12 (self-loop degree contribution 2.0 -> 1.0)`, which silently
+  passed under the previous test suite because no Louvain test exercised
+  self-loops.
+
 - Cross-validation suite (`tests/crossval_test.zig`, `zig build crossval`)
   comparing zig-graph against networkx 3.6.1 + closed-form references on
   Zachary's Karate Club (weighted), Petersen graph, P_5, C_6, K_5. Observed
@@ -25,6 +52,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   observed delta vs networkx across all four: 1.02e-12 (star), 0 (cycle,
   closed-form), 5.09e-13 (asym), 1.92e-13 (binary tree). Five new tests
   (4 hard gates + 1 audit summary), test count 64 → 69.
+
+### Changed
+- Test count: 69 → 70 (added the self-loop Louvain regression described above).
 
 ## [1.1.0] — 2026-05-13
 
