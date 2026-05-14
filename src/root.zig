@@ -219,6 +219,69 @@ pub fn pagerank(
     return result;
 }
 
+pub const DirectedPageRankOptions = struct {
+    damping: f64 = 0.85,
+    iterations: usize = 40,
+};
+
+/// Directed PageRank. Each edge `(s → t)` contributes
+/// `damping * rank[s] * weight / out_weight[s]` to `rank[t]` per iteration.
+/// Nodes with zero out-weight (sinks) redistribute their rank uniformly
+/// across all nodes to preserve mass conservation. Result sums to ~1.0.
+///
+/// To represent a directed edge add it once with `addEdge(s, t, w)`. The
+/// undirected `pagerank` walks both endpoints; this routine walks only
+/// `s → t`.
+pub fn directedPagerank(
+    graph: Graph,
+    allocator: std.mem.Allocator,
+    options: DirectedPageRankOptions,
+) Error![]f64 {
+    const n = graph.node_count;
+    const result = try allocator.alloc(f64, n);
+    errdefer allocator.free(result);
+
+    if (n == 0) return result;
+
+    // Sum of outgoing edge weights per node.
+    const out_w = try allocator.alloc(f64, n);
+    defer allocator.free(out_w);
+    @memset(out_w, 0.0);
+    for (graph.edges.items) |edge| {
+        out_w[edge.source] += edge.weight;
+    }
+
+    var next = try allocator.alloc(f64, n);
+    defer allocator.free(next);
+
+    const base = 1.0 / @as(f64, @floatFromInt(n));
+    @memset(result, base);
+
+    var i: usize = 0;
+    while (i < options.iterations) : (i += 1) {
+        @memset(next, (1.0 - options.damping) * base);
+
+        // Dangling-node redistribution (sinks).
+        var dangling_mass: f64 = 0.0;
+        for (result, 0..) |v, idx| {
+            if (out_w[idx] == 0.0) dangling_mass += v;
+        }
+        const share = options.damping * dangling_mass * base;
+        if (share != 0.0) {
+            for (next) |*t| t.* += share;
+        }
+
+        for (graph.edges.items) |edge| {
+            if (out_w[edge.source] > 0.0) {
+                next[edge.target] += options.damping * result[edge.source] *
+                    edge.weight / out_w[edge.source];
+            }
+        }
+        @memcpy(result, next);
+    }
+    return result;
+}
+
 /// Number of edges whose endpoints have different partition labels.
 /// `partition.len` must equal `graph.node_count`.
 pub fn cutEdges(graph: Graph, partition: []const u32) Error!usize {
@@ -489,6 +552,61 @@ test "weights influence pagerank ordering" {
     // Node 1 should receive more mass than node 2 because the edge from
     // node 0 to node 1 carries more weight.
     try testing.expect(pr[1] > pr[2]);
+}
+
+test "directedPagerank: hub-and-spoke with incoming edges → hub dominates" {
+    // 1,2,3,4 → 0 (hub). Hub has 4 incoming, 0 outgoing.
+    var g = Graph.init(testing.allocator, 5);
+    defer g.deinit();
+    try g.addEdge(1, 0, 1.0);
+    try g.addEdge(2, 0, 1.0);
+    try g.addEdge(3, 0, 1.0);
+    try g.addEdge(4, 0, 1.0);
+
+    const pr = try directedPagerank(g, testing.allocator, .{});
+    defer testing.allocator.free(pr);
+
+    var total: f64 = 0.0;
+    for (pr) |v| total += v;
+    try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-6);
+
+    for ([_]usize{ 1, 2, 3, 4 }) |spoke| {
+        try testing.expect(pr[0] > pr[spoke]);
+    }
+}
+
+test "directedPagerank: hub with only outgoing edges has lowest rank" {
+    // 0 → 1,2,3,4. Hub has 0 incoming, 4 outgoing.
+    var g = Graph.init(testing.allocator, 5);
+    defer g.deinit();
+    try g.addEdge(0, 1, 1.0);
+    try g.addEdge(0, 2, 1.0);
+    try g.addEdge(0, 3, 1.0);
+    try g.addEdge(0, 4, 1.0);
+
+    const pr = try directedPagerank(g, testing.allocator, .{});
+    defer testing.allocator.free(pr);
+
+    var total: f64 = 0.0;
+    for (pr) |v| total += v;
+    try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-6);
+
+    for ([_]usize{ 1, 2, 3, 4 }) |spoke| {
+        try testing.expect(pr[0] <= pr[spoke] + 1e-9);
+    }
+}
+
+test "directedPagerank: pure sink network sums to 1" {
+    // All nodes dangling — only base mass + uniform redistribution.
+    var g = Graph.init(testing.allocator, 4);
+    defer g.deinit();
+    const pr = try directedPagerank(g, testing.allocator, .{});
+    defer testing.allocator.free(pr);
+    var total: f64 = 0.0;
+    for (pr) |v| total += v;
+    try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-6);
+    // With no edges every node is symmetric — uniform 0.25.
+    for (pr) |v| try testing.expectApproxEqAbs(@as(f64, 0.25), v, 1e-6);
 }
 
 // ---- fuzz tests ----
