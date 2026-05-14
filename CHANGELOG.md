@@ -1,18 +1,65 @@
-## v1.0.0 — 2026-05-13
-
-**Production-grade hygiene milestone.**
-
-- Added SECURITY.md (coordinated disclosure policy).
-- Verified LICENSE, README, CONTRIBUTING, CODE_OF_CONDUCT, CI workflow all in place and accurate.
-- API surface declared stable for the v1.x cycle. Breaking changes will bump to v2.x.
-- Engineering posture: Virgil work-in-progress convention adapted for OSS — v1.0 means we stand behind the existing surface; v1.x patches refine implementation without breaking the API.
-
 # Changelog
 
 All notable changes to `zig-graph` are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
+
+## [1.0.0] — 2026-05-13
+
+**Full algorithm surface.** Adds the seven algorithms the v0.1 README
+listed as out-of-scope plus the supporting traversal primitives.
+
+### Added
+- `betweennessCentrality(graph, allocator, options)` — Brandes' algorithm.
+  BFS variant for `unweighted = true` (O(|V|·|E|)); Dijkstra variant
+  otherwise. Optional `[0, 1]` normalisation via `2 / ((n-1)(n-2))`.
+- `closenessCentrality(graph, allocator)` — Wasserman-Faust normalised
+  closeness on top of `sssp`. Handles disconnected components (isolated
+  nodes get 0).
+- `fiedlerValue` / `fiedlerVector` / `fiedler` — algebraic connectivity
+  via deflated power iteration on `M = τI − L` with `τ = 2·max_deg + 1`.
+  Validated against closed-form λ₁ for `P_n`, `C_n`, `K_{1,n-1}`, `K_n`,
+  and a barbell reference. `O((|V| + |E|) · iters)` per call, no matrix
+  factorisation.
+- `louvain(graph, allocator, options)` — Blondel et al. 2008 modularity
+  maximisation with local-move + aggregation phases. Returns labels,
+  community count, and modularity `Q`. `modularity(graph, partition,
+  allocator)` exposes Newman modularity for arbitrary partitions.
+- `directedPagerank(graph, allocator, options)` — directed-edge variant
+  respecting edge direction; sinks redistribute mass uniformly. Result
+  sums to ~1.0.
+- `bfs(graph, start, allocator)` — visit order from a start node.
+- `dfs(graph, start, allocator)` — iterative pre-order.
+- `sssp(graph, start, allocator)` — Dijkstra single-source distances;
+  `inf` for unreachable nodes.
+- `bfsPath(graph, start, end, allocator)` — shortest unweighted path or
+  `null`.
+- `buildAdjacency` / `buildDirectedAdjacency` — CSR-style adjacency
+  construction exposed as public API (used internally; useful externally
+  when you want to amortise the build across multiple operations).
+- Three new benchmarks: `bench_betweenness.zig`, `bench_louvain.zig`,
+  `bench_fiedler.zig`.
+
+### Changed
+- Test count: 16 → 50. New tests cover correctness on canonical small
+  graphs for every new algorithm plus three new random-graph fuzz
+  harnesses (betweenness non-negativity + upper-bound; Fiedler spectral
+  bound + non-negativity; Louvain modularity ∈ [-0.5, 1]).
+- Source factored into `src/{traversal, centrality, spectral, community}.zig`
+  with `src/root.zig` as the re-export hub. Existing API is preserved
+  verbatim (additive).
+- Minimum Zig: `0.15.0` → `0.16.0`.
+
+### Out of scope for v1.0
+- Leiden refinement (Traag et al. 2019).
+- Parallel-edge merging at construction time.
+- Hypergraphs.
+- ILP-based optimal community detection.
+- CSR caching at the `Graph` level.
+- GPU offload.
+
+These remain deliberate. See README "Out of scope for v1.0".
 
 ## [0.1.0] — 2026-05-13
 
@@ -34,7 +81,7 @@ library exposes only the schema-free primitives.
   `cut / min(vol(S), vol(V\S))`.
 - `Error` enum: `NodeIndexOutOfRange`, `PartitionSizeMismatch`, plus
   allocator errors.
-- 15 tests covering correctness on canonical small graphs (triangle, star,
+- 16 tests covering correctness on canonical small graphs (triangle, star,
   cycle, barbell) plus error-path validation.
 
 ### Notes
