@@ -445,3 +445,72 @@ test "weights influence pagerank ordering" {
     // node 0 to node 1 carries more weight.
     try testing.expect(pr[1] > pr[2]);
 }
+
+// ---- fuzz tests ----
+//
+// Random-graph invariants. Each iteration builds an Erdős–Rényi-style graph
+// with a random node count and a random edge count, then asserts the
+// algorithm-level invariants that any valid implementation must satisfy:
+//
+//   * `eigenvectorCentrality` returns only finite values (no NaN, no Inf)
+//   * `pagerank` mass sums to ~1.0 (within 1e-6, accounting for f64 round-off)
+//   * `cutEdges` is non-negative for any partition
+//
+// 10 000 iterations is enough that any panic, leak, NaN, or sign error in the
+// numerical paths shows up within a few seconds. The PRNG seed is fixed so
+// failures are reproducible.
+
+test "fuzz: random graphs preserve centrality / pagerank / cut invariants" {
+    const fuzz_iters: usize = 10_000;
+    var rng = std.Random.DefaultPrng.init(0x60A1_BEEF_DEAD_C0DE);
+    const r = rng.random();
+
+    var i: usize = 0;
+    while (i < fuzz_iters) : (i += 1) {
+        // 1..64 nodes, 0..(2*n) edges. Small enough to keep the fuzz fast,
+        // wide enough to exercise dangling nodes (m=0), self-loops, parallel
+        // edges, and dense regions.
+        const n: usize = @as(usize, r.uintLessThan(u8, 64)) + 1;
+        const m: usize = r.uintLessThan(usize, 2 * n + 1);
+
+        var g = Graph.init(testing.allocator, n);
+        defer g.deinit();
+
+        var j: usize = 0;
+        while (j < m) : (j += 1) {
+            const src = r.uintLessThan(usize, n);
+            const dst = r.uintLessThan(usize, n);
+            // Random weight in [0.1, 5.0] — avoid zero so degree calc is meaningful.
+            const w = 0.1 + r.float(f64) * 4.9;
+            try g.addEdge(src, dst, w);
+        }
+
+        // Invariant 1: eigenvector centrality is finite.
+        const ec = try eigenvectorCentrality(g, testing.allocator, .{});
+        defer testing.allocator.free(ec);
+        for (ec) |v| {
+            try testing.expect(!std.math.isNan(v));
+            try testing.expect(!std.math.isInf(v));
+        }
+
+        // Invariant 2: PageRank sums to ~1.0.
+        const pr = try pagerank(g, testing.allocator, .{});
+        defer testing.allocator.free(pr);
+        var total: f64 = 0.0;
+        for (pr) |v| {
+            try testing.expect(!std.math.isNan(v));
+            try testing.expect(!std.math.isInf(v));
+            try testing.expect(v >= -1e-12); // tiny negative round-off is tolerated
+            total += v;
+        }
+        try testing.expectApproxEqAbs(@as(f64, 1.0), total, 1e-6);
+
+        // Invariant 3: cutEdges is non-negative for any partition.
+        const partition = try testing.allocator.alloc(u32, n);
+        defer testing.allocator.free(partition);
+        for (partition) |*p| p.* = r.uintLessThan(u32, 2);
+        const cut = try cutEdges(g, partition);
+        try testing.expect(cut <= m); // at most every edge crosses
+        // `cut` is `usize` so >= 0 is implicit, but assert m-bounded for sanity.
+    }
+}
