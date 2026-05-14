@@ -5,6 +5,17 @@ All notable changes to `zig-graph` are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Cross-validation suite (`tests/crossval_test.zig`, `zig build crossval`)
+  comparing zig-graph against networkx 3.6.1 + closed-form references on
+  Zachary's Karate Club (weighted), Petersen graph, P_5, C_6, K_5. Observed
+  deltas on weighted karate: PageRank 9.6e-12, eigenvector centrality
+  1.1e-15, modularity / conductance / cut size exact, Louvain Q = 0.444904
+  matching networkx weighted-louvain best-of-50-seeds (0.444904). 14 tests;
+  wired into `zig build test` so the external-reference contract holds in CI.
+
 ## [1.1.0] — 2026-05-13
 
 **Full algorithm surface.** Adds the seven algorithms the v0.1 README

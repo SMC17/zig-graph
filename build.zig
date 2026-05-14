@@ -17,6 +17,27 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_tests.step);
 
+    // Cross-validation suite — separate `zig build crossval` step.
+    // Compares zig-graph output against networkx 3.6.1 and closed-form
+    // references on canonical small graphs (karate club, Petersen, P_5,
+    // C_6, K_5). Wired into `zig build test` as well so any regression
+    // against the external reference fails CI loudly.
+    const crossval_mod = b.createModule(.{
+        .root_source_file = b.path("tests/crossval_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    crossval_mod.addImport("graph", mod);
+    const crossval_tests = b.addTest(.{
+        .root_module = crossval_mod,
+    });
+    const run_crossval = b.addRunArtifact(crossval_tests);
+    const crossval_step = b.step("crossval", "Run cross-validation against networkx + closed-form references");
+    crossval_step.dependOn(&run_crossval.step);
+    // Also run on `zig build test` so the external-reference contract is
+    // not silently broken by a future change.
+    test_step.dependOn(&run_crossval.step);
+
     // Example
     const example_mod = b.createModule(.{
         .root_source_file = b.path("examples/centrality.zig"),
