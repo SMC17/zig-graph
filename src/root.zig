@@ -30,6 +30,7 @@ const std = @import("std");
 const traversal = @import("traversal.zig");
 const centrality = @import("centrality.zig");
 const spectral = @import("spectral.zig");
+const community = @import("community.zig");
 
 // ---- traversal re-exports ----
 
@@ -55,6 +56,13 @@ pub const FiedlerResult = spectral.FiedlerResult;
 pub const fiedler = spectral.fiedler;
 pub const fiedlerValue = spectral.fiedlerValue;
 pub const fiedlerVector = spectral.fiedlerVector;
+
+// ---- community re-exports ----
+
+pub const LouvainOptions = community.LouvainOptions;
+pub const LouvainResult = community.LouvainResult;
+pub const louvain = community.louvain;
+pub const modularity = community.modularity;
 
 pub const Edge = struct {
     source: usize,
@@ -261,6 +269,7 @@ comptime {
     _ = traversal;
     _ = centrality;
     _ = spectral;
+    _ = community;
 }
 
 const testing = std.testing;
