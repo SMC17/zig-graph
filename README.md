@@ -9,12 +9,17 @@ small-to-medium graphs.
 
 ## Status
 
-`v1.0.0` — full algorithm surface. 50 tests cover correctness on canonical
+`v1.1.0` — full algorithm surface. 50 tests cover correctness on canonical
 small graphs (path, cycle, star, complete, barbell), error-path validation,
 and four random-graph fuzz harnesses (centrality / pagerank / cut +
 betweenness + Fiedler + Louvain) checking finiteness, mass conservation,
 non-negativity of betweenness, modularity bounds `[-0.5, 1]`, and spectral
 bounds (`0 ≤ λ₁ ≤ 2·max_deg`).
+
+> `v1.0.0` shipped as a hygiene-only milestone (CI / SECURITY / contributor
+> docs) and is preserved as the previous tag. `v1.1.0` is the first release
+> with the full algorithm surface — the seven algorithms the original `v0.1.0`
+> README listed as out-of-scope are all implemented here.
 
 Minimum Zig version: `0.16.0`. Tested on Zig `0.16.0`.
 
@@ -62,7 +67,7 @@ Add to `build.zig.zon`:
 ```zig
 .dependencies = .{
     .graph = .{
-        .url = "https://github.com/SMC17/zig-graph/archive/refs/tags/v1.0.0.tar.gz",
+        .url = "https://github.com/SMC17/zig-graph/archive/refs/tags/v1.1.0.tar.gz",
         .hash = "...",
     },
 },
