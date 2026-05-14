@@ -1,8 +1,8 @@
 .{
     .name = .graph,
-    .version = "0.1.0",
+    .version = "1.0.0",
     .fingerprint = 0x94505dcba72e82f,
-    .minimum_zig_version = "0.15.0",
+    .minimum_zig_version = "0.16.0",
     .paths = .{
         "src",
         "build.zig",
