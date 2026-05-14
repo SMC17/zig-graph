@@ -5,10 +5,16 @@ All notable changes to `zig-graph` are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] — 2026-05-13
+## [1.1.0] — 2026-05-13
 
 **Full algorithm surface.** Adds the seven algorithms the v0.1 README
 listed as out-of-scope plus the supporting traversal primitives.
+
+> Note: `v1.0.0` (also dated 2026-05-13) shipped earlier the same day as a
+> hygiene-only milestone (CI / SECURITY / contributor docs / API-freeze
+> statement). It is preserved as the previous tag. This is the first release
+> with the genuine algorithmic v1.0 content; bumped to `v1.1.0` to avoid
+> rewriting the already-published `v1.0.0` tag.
 
 ### Added
 - `betweennessCentrality(graph, allocator, options)` — Brandes' algorithm.
@@ -51,7 +57,7 @@ listed as out-of-scope plus the supporting traversal primitives.
   verbatim (additive).
 - Minimum Zig: `0.15.0` → `0.16.0`.
 
-### Out of scope for v1.0
+### Out of scope
 - Leiden refinement (Traag et al. 2019).
 - Parallel-edge merging at construction time.
 - Hypergraphs.
