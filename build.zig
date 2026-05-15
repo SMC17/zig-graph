@@ -54,6 +54,31 @@ pub fn build(b: *std.Build) void {
     const example_step = b.step("example-centrality", "Run the centrality example");
     example_step.dependOn(&run_example.step);
 
+    // README Quickstart example — vendored verbatim from README.md as the
+    // executable form of the documentation. Backed by `tools/doctest.sh`
+    // which diff-checks the README block against this file; drift fails.
+    const quickstart_mod = b.createModule(.{
+        .root_source_file = b.path("examples/quickstart.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    quickstart_mod.addImport("graph", mod);
+    const quickstart_exe = b.addExecutable(.{
+        .name = "example-quickstart",
+        .root_module = quickstart_mod,
+    });
+    b.installArtifact(quickstart_exe);
+    const run_quickstart = b.addRunArtifact(quickstart_exe);
+    const quickstart_step = b.step("example-quickstart", "Run the README Quickstart example");
+    quickstart_step.dependOn(&run_quickstart.step);
+
+    // Doc-tests — extract README's Quickstart + API blocks, diff against
+    // the vendored example + source, run binary, check output.
+    const doctest = b.addSystemCommand(&.{ "bash", "tools/doctest.sh" });
+    doctest.step.dependOn(b.getInstallStep());
+    const doctest_step = b.step("doctest", "Verify README claims match the code");
+    doctest_step.dependOn(&doctest.step);
+
     // Benchmarks — separate step (`zig build bench`) so `zig build test`
     // stays fast. Always built in ReleaseFast so numbers reflect optimised
     // codegen regardless of the user's top-level optimize flag.
