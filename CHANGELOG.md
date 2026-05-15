@@ -7,6 +7,35 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Honesty correction — 2026-05-15
+
+Prior `v1.0` / `v1.1` / "production-grade hygiene milestone" /
+"full algorithm surface" framing was a Type-I error class per the
+no-premature-production-claims doctrine:
+
+- **Zig itself is on 0.16, not 1.0.** No Zig library can credibly claim
+  API stability beyond "stable on Zig 0.16 today" until the language
+  itself ships 1.0. The v1.x git tags are honored for changelog
+  continuity, but every reader should treat this as **pre-1.0 in semver
+  spirit** until both that gate and a real-deployment gate close.
+- **Zero production deployment exists.** No real-traffic operation, no
+  soak time, no incident history. The hygiene work
+  (LICENSE / SECURITY / CONTRIBUTING / CI / CODE_OF_CONDUCT / dependabot
+  / CODEOWNERS) is real. The production claim it implied **wasn't
+  earned** — and the numerical surface in particular still has at
+  least one real-narrow-tolerance mutation survivor on
+  `eigenvectorCentrality` (`M05`) honestly classified rather than
+  closed.
+
+Going forward, the AGENT_HARNESS proof vocabulary (`scaffold` /
+`compiled` / `unit-tested` / `integration-tested` / `audited` /
+`benchmarked` / `hardware-verified`) is used strictly. See `STATUS.md`
+for the per-component proof index + the gates (G1 scale-tested
+throughput on SNAP-class graphs + a committed `bench/RESULTS.md`,
+G2 soak time + downstream user, G3 independent numerics review,
+G4 external-reference cross-val for Fiedler, G5 Zig 1.0) that would
+justify a stronger claim.
+
 ### Added
 - Mutation-testing harness (`tools/mutation-test.sh`) applying 14 hand-picked
   operators across `src/{root, spectral, community, centrality}.zig`. Targets
