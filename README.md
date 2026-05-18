@@ -2,24 +2,57 @@
 
 [![CI](https://github.com/SMC17/zig-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/SMC17/zig-graph/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/SMC17/zig-graph?display_name=tag&sort=semver)](https://github.com/SMC17/zig-graph/releases) [![License](https://img.shields.io/github/license/SMC17/zig-graph)](LICENSE)
 
-Sparse graph primitives and spectral / centrality / community / traversal
-algorithms in pure Zig. No dependencies, no allocation hidden from the caller,
-suitable for hosts and servers that need real graph analytics on
-small-to-medium graphs.
+**A pure-Zig sparse graph library: 15 algorithms over BFS / DFS / Dijkstra / PageRank / Brandes betweenness / closeness / eigenvector centrality / Fiedler spectral / Louvain community, 50 / 50 tests passing, ~10 k random-graph fuzz iterations per build, zero hidden allocation, no dependencies.**
+
+A `Graph` is `node_count` plus an `ArrayList(Edge)` of `{source, target,
+weight}`. Edges are treated as undirected unless you use the directed
+variant. Node payload (labels, geographic data, type tags) is *not* part
+of the graph type — callers index their own arrays by node id. This is
+what makes the library composable with any caller's data model.
 
 ## Status
 
-`v1.1.0` — full algorithm surface. 50 tests cover correctness on canonical
-small graphs (path, cycle, star, complete, barbell), error-path validation,
-and four random-graph fuzz harnesses (centrality / pagerank / cut +
-betweenness + Fiedler + Louvain) checking finiteness, mass conservation,
-non-negativity of betweenness, modularity bounds `[-0.5, 1]`, and spectral
-bounds (`0 ≤ λ₁ ≤ 2·max_deg`).
+`v1.2.0` — full algorithm surface. Evidence level: **unit-tested +
+property-fuzzed + coverage-measured**.
+
+**Line coverage: 86.98% on `src/` (394/453 lines)** across all 5
+source files — `root.zig` 94.20%, `community.zig` 93.55%, `centrality.zig`
+81.16%, `traversal.zig` 81.20%, `spectral.zig` 76.74%. Measured by
+`tools/coverage.sh` (kcov against a dedicated `coverage-driver`
+executable; reproducible in CI on every push). Uncovered lines are
+predominantly defensive `unreachable` branches + `errdefer` cleanup
+paths.
+
+50 / 50 tests pass on Zig 0.16.0 (`zig build test`):
+
+- Closed-form Fiedler-value tests against the analytic spectrum for
+  `P_4`, `P_10`, `C_6`, `K_{1,4}` star, `K_4` complete, and a six-node
+  barbell — tolerance `1e-5` to `1e-6`.
+- Brandes betweenness on a 5-node path matches the analytic `(0, 3, 4, 3, 0)`;
+  star center matches `(n-1)(n-2)/2 = 6` exactly; normalised star
+  centrality is exactly `1.0`.
+- PageRank sums to `1.0 ± 1e-6` on every test graph and fuzz iteration;
+  dangling-node test asserts that a node with no incident edges still
+  receives positive mass (uniform redistribution path).
+- Louvain on two K₃ joined by a bridge recovers exactly two
+  communities with modularity `Q > 0.30`; on a clique recovers one
+  community; modularity self-report matches the standalone
+  `modularity()` function.
+- Four random-graph fuzz harnesses checking algorithm-level invariants:
+  - **centrality / pagerank / cut** — 10 000 random graphs
+    (1–64 nodes, `0..2n` edges); eigenvector finiteness (no NaN /
+    Inf), PageRank `Σ = 1 ± 1e-6` and tiny-negative round-off only,
+    cutEdges `≤ m`.
+  - **fiedler** — 200 random graphs; `λ₁ ≥ -1e-8`, `λ₁ ≤ 2·max_deg + 1e-6`.
+  - **betweenness** — 100 random graphs; `bc[v] ≥ -1e-9`,
+    `bc[v] ≤ (n-1)(n-2)/2`, no NaN.
+  - **louvain** — 60 random graphs; modularity `Q ∈ [-0.5, 1]`,
+    `num_communities ∈ [1, n]`.
 
 > `v1.0.0` shipped as a hygiene-only milestone (CI / SECURITY / contributor
 > docs) and is preserved as the previous tag. `v1.1.0` is the first release
-> with the full algorithm surface — the seven algorithms the original `v0.1.0`
-> README listed as out-of-scope are all implemented here.
+> with the full algorithm surface — the seven algorithms the original
+> `v0.1.0` README listed as out-of-scope are all implemented here.
 
 Minimum Zig version: `0.16.0`. Tested on Zig `0.16.0`.
 
@@ -310,33 +343,91 @@ collectors can scrape them. Timing uses
 and `std.time.nanoTimestamp` were removed in Zig 0.16's stdlib reshuffle.
 
 Representative numbers on the maintainer's workstation
-(Intel Core i7-1065G7 @ 1.30 GHz, Linux 7.0.3-arch1-1 x86_64, Zig
-0.16.0, `zig build bench` with `-Doptimize=ReleaseFast`):
+(Intel Core i7-1065G7 @ 1.30 GHz, Linux 7.0.3-arch1-1 x86_64, Zig 0.16.0,
+`zig build bench -Doptimize=ReleaseFast`, run on a busy laptop running
+concurrent agents):
 
-| Bench         | Size         | ms/run  | ops/sec | notes |
-| ------------- | ------------ | ------- | ------- | ----- |
-| pagerank      | 100 nodes    |   0.45  |  2 228  | 40 iters |
-| pagerank      | 1 000 nodes  |   8     |    123  | 40 iters |
-| pagerank      | 10 000 nodes | 280     |      3  | 40 iters |
-| centrality    | 100 nodes    |   0.56  |  1 770  | 32 power iters |
-| centrality    | 1 000 nodes  |   4.9   |    204  | 32 power iters |
-| centrality    | 10 000 nodes |  64     |     15  | 32 power iters |
-| betweenness   | 100 nodes    |   3.9   |    257  | Brandes O(VE) |
-| betweenness   | 1 000 nodes  | 502     |      1  | Brandes O(VE) |
-| louvain       | 100 nodes    |   2.8   |    359  | Q ≈ 0.32 |
-| louvain       | 1 000 nodes  |  20     |     49  | Q ≈ 0.33 |
-| fiedler       | 100 nodes    |   8.1   |    123  | 574 iters to converge |
-| fiedler       | 1 000 nodes  | 264     |      3  | hit iter cap (1000) on disc. ER graph |
-| fiedler       | 10 000 nodes |1 366    |      0  | disconnected components → λ₁ ≈ 0 |
-| construct     | 1 K edges    |   0.16  | 6.4 M edges/s |  |
-| construct     | 10 K edges   |   3.2   | 3.1 M edges/s |  |
-| construct     | 100 K edges  |   3.0   | 33.3 M edges/s | amortised |
+| Bench         | Size         |  ms/run | ops/sec | notes |
+| ------------- | ------------ | ------: | ------: | ----- |
+| pagerank      | 100 nodes    |    0.11 |   8 868 | 40 iters |
+| pagerank      | 1 000 nodes  |    1.27 |     784 | 40 iters |
+| pagerank      | 10 000 nodes |   17.4  |      57 | 40 iters |
+| centrality    | 100 nodes    |    0.22 |   4 487 | 32 power iters |
+| centrality    | 1 000 nodes  |    1.36 |     736 | 32 power iters |
+| centrality    | 10 000 nodes |   25.97 |      38 | 32 power iters |
+| betweenness   | 100 nodes    |    1.98 |     505 | Brandes BFS, O(VE) |
+| betweenness   | 1 000 nodes  |  182.18 |       5 | Brandes BFS, O(VE) |
+| louvain       | 100 nodes    |    0.91 |   1 098 | Q ≈ 0.319, 6 communities |
+| louvain       | 1 000 nodes  |    9.46 |     105 | Q ≈ 0.330, 16 communities |
+| fiedler       | 100 nodes    |    2.92 |     342 | 574 iters to converge, λ₁ ≈ 0.7955 |
+| fiedler       | 1 000 nodes  |   65.19 |      15 | hit iter cap (1 000) on disconnected ER graph |
+| fiedler       | 10 000 nodes |  479    |       2 | disconnected components → λ₁ ≈ 0 (correct) |
+| construct     | 1 K edges    |    0.17 |  11.4 M edges/s | 87 ns/edge |
+| construct     | 10 K edges   |    1.19 |   8.4 M edges/s | 119 ns/edge |
+| construct     | 100 K edges  |   10.31 |   9.7 M edges/s | 103 ns/edge |
 
 These numbers are on a busy laptop running concurrent agents; run-to-run
 variance is ±2× for the inner-loop benchmarks. Bring your own data on a
 quiet machine for steady measurements. Fiedler runs on disconnected
-random graphs converge to ≈ 0 — that is correct (a graph with k
-components has k zero eigenvalues), not a bug.
+Erdős–Rényi random graphs converge to ≈ 0 — that is correct (a graph
+with `k` components has `k` zero eigenvalues), not a bug.
+
+## A fleet component — Quantitative Mercantilism / Verifiable Fleet Engineering
+
+`zig-graph` is one hull section in a fleet of small, correctness-first
+Zig libraries. The Graph type is bounded (one struct, three fields, one
+edge list), the algorithms are composable (every routine takes a `Graph`
++ `Allocator` and returns caller-owned memory — no shared global state
+between calls), the components are replaceable (no internal CSR cache,
+no hidden cross-algorithm assumptions — you can rip out and swap any
+algorithm without touching the others), and the surface is auditable
+(every algorithm has at least one closed-form unit test against a
+canonical graph, plus invariant-checking fuzz over random graphs).
+That's what "Verifiable Fleet Engineering" means here in practice:
+ships that operate independently, can be repaired at sea against their
+own contract, and compose into larger fleets without negotiating
+contracts with each other at runtime.
+
+## Honest Type-I / Type-II accounting
+
+Things this README could be read to over-claim (Type-I risk):
+
+- "Validated against closed-form λ₁" applies to the **values** the
+  algorithm returns on tiny canonical graphs (paths, cycles, stars,
+  cliques, barbells), not to the full Fiedler-vector decomposition. On
+  pathological inputs (very tight spectral gap, near-degenerate
+  eigenvalues, or disconnected components with `k > 2`) deflated power
+  iteration is known to converge slowly and can return a vector that
+  mixes the bottom-`k` eigenspace. For research-grade spectral work on
+  big graphs you want Lanczos / LOBPCG; that is intentionally out of
+  scope here.
+- Louvain is a **heuristic**. The library's modularity result is the
+  modularity of the local-optimum partition Louvain finds, not the
+  global maximum (NP-hard in general). On graphs with very tight cluster
+  separation Louvain occasionally produces internally-disconnected
+  communities at deep aggregation; that is a known Louvain artefact and
+  the README "Out of scope" section names Leiden refinement as the
+  follow-up.
+- The benchmark numbers come from a single laptop run while many other
+  agents were active. Treat the table as the *shape* of the cost curve,
+  not as a steady-state production figure.
+
+Things this README could be read to under-claim (Type-II risk):
+
+- The fuzz harnesses run on every `zig build test`, so any future
+  regression that lets NaN escape from PageRank, that lets betweenness
+  go negative, or that pushes Louvain modularity outside `[-0.5, 1]`
+  breaks CI loudly. That is a strong continuous-validation property the
+  README does not headline.
+- The PageRank dangling-node path is exercised by a dedicated unit test
+  that asserts an isolated node receives positive mass and the total
+  still sums to `1.0 ± 1e-6` — meaning the library does *not* silently
+  leak mass on graphs with sinks, which is the most common PageRank
+  implementation bug.
+- No internal allocator. Every result is caller-owned and freed with
+  `allocator.free` or `.deinit()`. There is no global state and no
+  thread-local cache, so the library is safe to use from multiple
+  threads as long as each thread holds its own `Graph` and `Allocator`.
 
 ## License
 
