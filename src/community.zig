@@ -557,6 +557,56 @@ test "louvain fuzz: modularity in [-0.5, 1]" {
     }
 }
 
+test "louvain self-loop weighted-degree: heavy self-loop forces singleton" {
+    // Regression: `Aggregated.fromGraph` must weight self-loops by coefficient
+    // 2 in the row-sum degree (the undirected adjacency matrix has A_ii
+    // contributing 2·w because the convention is to count each endpoint of
+    // an edge, and a self-loop has both endpoints at the same node).
+    //
+    // A mutation that uses coefficient 1.0 understates the self-looped
+    // node's degree by w, distorts the total edge weight m by w/2, and
+    // changes Louvain's gain calculations enough that the correct
+    // modularity-maximising partition is missed.
+    //
+    // Setup: two triangles {0,1,2} and {3,4,5} joined by a single bridge
+    // edge 2-3, plus a HEAVY self-loop on node 0 (weight 5). The self-loop's
+    // contribution to k_0 = 10 is larger than 0's neighbour weight (2),
+    // so the modularity-optimal partition has node 0 ISOLATED: the
+    // intra-community fraction `A_00 - k_0^2 / 2m` is maximised by keeping
+    // 0 alone with its self-loop.
+    //
+    // Correct code → r.labels[0] != r.labels[1] (node 0 isolated).
+    // M12-mutated code → r.labels[0] == r.labels[1] (degree undercount
+    //                    makes the singleton move look unattractive).
+    var g = Graph.init(testing.allocator, 6);
+    defer g.deinit();
+    try g.addEdge(0, 1, 1.0);
+    try g.addEdge(1, 2, 1.0);
+    try g.addEdge(0, 2, 1.0);
+    try g.addEdge(3, 4, 1.0);
+    try g.addEdge(4, 5, 1.0);
+    try g.addEdge(3, 5, 1.0);
+    try g.addEdge(2, 3, 1.0); // bridge
+    try g.addEdge(0, 0, 5.0); // heavy self-loop on node 0
+
+    var r = try louvain(g, testing.allocator, .{});
+    defer r.deinit();
+
+    // The discriminating assertion: with the heavy self-loop correctly
+    // weighted, node 0 sits in its own community (split from 1, 2).
+    try testing.expect(r.labels[0] != r.labels[1]);
+    // The remaining triangle plus the second triangle still cluster as
+    // expected.
+    try testing.expectEqual(r.labels[1], r.labels[2]);
+    try testing.expectEqual(r.labels[3], r.labels[4]);
+    try testing.expectEqual(r.labels[4], r.labels[5]);
+
+    // Sanity: Louvain's self-reported modularity matches the external
+    // `modularity` function on the same partition.
+    const q = try modularity(g, r.labels, testing.allocator);
+    try testing.expectApproxEqAbs(r.modularity, q, 1e-9);
+}
+
 test "modularity function matches louvain self-report" {
     var g = Graph.init(testing.allocator, 6);
     defer g.deinit();
