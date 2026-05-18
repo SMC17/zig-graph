@@ -21,13 +21,7 @@ set -euo pipefail
 OUT_DIR="${COVERAGE_OUT_DIR:-coverage-out}"
 KEEP_HTML="${1:-}"
 
-# Build the coverage driver. Use ReleaseSafe for zig-graph specifically:
-# Debug-mode DWARF on Zig 0.16 + the nixpkgs kcov build silently fails to
-# capture line coverage on multi-file modules with named-imports (driver
-# imports `graph`, root.zig re-exports traversal/centrality/spectral/
-# community). ReleaseSafe keeps the assertion checks + emits DWARF in a
-# layout kcov reads cleanly. zig-cobs uses Debug because its module is a
-# single file (root.zig only) — multi-file is the trigger.
+# Build the coverage driver. Use Debug so kcov sees the DWARF info.
 zig build install -Doptimize=ReleaseSafe
 
 if ! command -v kcov >/dev/null 2>&1; then
@@ -39,10 +33,19 @@ fi
 rm -rf "$OUT_DIR"
 kcov --include-pattern=root.zig,traversal.zig,centrality.zig,spectral.zig,community.zig "$OUT_DIR" ./zig-out/bin/coverage-driver
 
-# Surface the line coverage percentage to stdout in a CI-greppable form.
-pct=$(jq -r '.percent_covered' "$OUT_DIR/coverage-driver/coverage.json")
-covered=$(jq -r '.covered_lines' "$OUT_DIR/coverage-driver/coverage.json")
-total=$(jq -r '.total_lines' "$OUT_DIR/coverage-driver/coverage.json")
+# Locate coverage.json — older kcov (Ubuntu 22.04 ships v38) writes only
+# the per-run hashed subdir; newer kcov (NixOS v43) also writes the
+# canonical `<exe-name>/coverage.json`. Find whichever exists.
+report=$(find "$OUT_DIR" -name coverage.json -type f | sort | head -1)
+if [[ -z "$report" ]]; then
+    echo "tools/coverage.sh: kcov produced no coverage.json under $OUT_DIR" >&2
+    find "$OUT_DIR" -type f 2>/dev/null | head -10 >&2
+    exit 2
+fi
+
+pct=$(jq -r '.percent_covered' "$report")
+covered=$(jq -r '.covered_lines' "$report")
+total=$(jq -r '.total_lines' "$report")
 
 echo
 echo "src/root.zig line coverage: $pct% ($covered/$total)"
