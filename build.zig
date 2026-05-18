@@ -109,4 +109,25 @@ pub fn build(b: *std.Build) void {
         run_bench.has_side_effects = true; // ensure rerun on `zig build bench`
         bench_step.dependOn(&run_bench.step);
     }
+
+    // Coverage driver — plain executable that exercises every public API
+    // + every error path so kcov can measure src/root.zig line coverage.
+    // Per the zig-cobs v1.2.0 toolchain note: Zig 0.16 test-runner
+    // debug-info doesn't surface line-coverage to the nixpkgs kcov build
+    // (compiled without libbfd-dev); a plain exe with standard ELF+DWARF
+    // captures cleanly.
+    const cov_mod = b.createModule(.{
+        .root_source_file = b.path("examples/coverage_driver.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    cov_mod.addImport("graph", mod);
+    const cov_exe = b.addExecutable(.{
+        .name = "coverage-driver",
+        .root_module = cov_mod,
+    });
+    b.installArtifact(cov_exe);
+    const run_cov = b.addRunArtifact(cov_exe);
+    const cov_step = b.step("coverage-driver", "Run the kcov coverage driver");
+    cov_step.dependOn(&run_cov.step);
 }

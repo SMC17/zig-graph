@@ -5,6 +5,42 @@ All notable changes to `zig-graph` are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-05-18
+
+### Added
+- **Line coverage measurement: 86.98% on src/* (394/453 lines)** across
+  all 5 source files: `root.zig` 94.20%, `community.zig` 93.55%,
+  `centrality.zig` 81.16%, `traversal.zig` 81.20%, `spectral.zig` 76.74%.
+  Adopts the zig-cobs v1.2.0 coverage-driver pattern, with one
+  adaptation for zig-graph's multi-file module structure:
+  - `examples/coverage_driver.zig` (new) — exercises every public
+    function (`Graph.init/deinit/addEdge`, `weightedDegree`,
+    `pagerank`/`directedPagerank`, `eigenvectorCentrality`,
+    `betweennessCentrality`, `closenessCentrality`, `fiedler` family,
+    `louvain`, `modularity`, `cutEdges`, `conductance`,
+    `bfs`/`dfs`/`sssp`/`bfsPath`, `buildAdjacency`/
+    `buildDirectedAdjacency`) + both error variants (`NodeIndexOutOfRange`,
+    `PartitionSizeMismatch`).
+  - `tools/coverage.sh` (new) — uses `-Doptimize=ReleaseSafe` instead
+    of the Debug default. **Tooling note:** Debug-mode DWARF on Zig 0.16
+    + the nixpkgs kcov build silently fails to capture line coverage
+    on multi-file modules with named-imports (driver imports `graph`,
+    root.zig re-exports four sibling modules). ReleaseSafe keeps the
+    assertion checks + emits DWARF in a layout kcov reads cleanly.
+    `--include-pattern` lists all 5 source filenames explicitly.
+  - `build.zig` — new `coverage-driver` step.
+  - `.github/workflows/ci.yml` — new `line-coverage (kcov)` job.
+- README + status now name `coverage-measured` (86.98%, 5 files).
+
+### Toolchain rationale (extends the zig-cobs v1.2.0 note)
+- Single-file modules (zig-cobs's `root.zig` only) capture cleanly under
+  Debug. Multi-file modules need ReleaseSafe to give kcov DWARF it can
+  process. zig-cobs uses Debug; zig-graph + (likely) other multi-file
+  fleet repos use ReleaseSafe.
+- The Zig 0.16 test runner's debug-info layout itself doesn't surface
+  line-coverage to kcov regardless of optimize level — the coverage-
+  driver-as-plain-exe pattern remains required.
+
 ## [Unreleased]
 
 ### Honesty correction — 2026-05-15
