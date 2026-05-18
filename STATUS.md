@@ -41,7 +41,7 @@ until both gates above close.
 | `bfs` / `dfs` / `sssp` / `bfsPath` | `unit-tested`                  | `src/traversal.zig` 9 tests covering path-order, disconnected components, weighted cumulative distances, unreachable=inf, parallel-path tie-break, out-of-range rejection, CSR fan-out, shortest-path-or-null |
 | Cross-validation suite (external) | `audited`                       | `tests/crossval_test.zig` — 19 tests vs networkx 3.6.1 + closed-form references on karate / Petersen / P_5 / C_6 / K_5 + 4 directed canonical graphs; wired into `zig build test` so the external contract holds in CI |
 | Mutation surface (numerics)     | `audited` (78.6%)                 | `tools/mutation-test.sh` — 14 operators across `root`/`spectral`/`community`/`centrality`: **11 killed / 3 survived** (M05 real-narrow tolerance, M09 equivalent mutant on Fiedler τ, M11 equivalent mutant on Louvain best-gain comparator). Survivors honestly classified, not hidden |
-| Throughput                      | `compiled`                        | 6 benches under `bench/` (pagerank, centrality, construct, betweenness, louvain, fiedler) build under `zig build bench` (ReleaseFast). **No published `bench/RESULTS.md` exists yet** — the benches run, but no pinned-hardware numbers have been committed |
+| Throughput                      | `compiled` + `scale-tested`       | 6 benches under `bench/` (pagerank, centrality, construct, betweenness, louvain, fiedler) build under `zig build bench` (ReleaseFast). Scale bench (`bench/bench_scale.zig`, separate `zig build bench-scale`) closes G1 — runs PageRank / directedPageRank / SSSP / BFS / weightedDegree on 100K-node and 1M-node Erdős–Rényi graphs with algorithm-level invariant assertions at scale; published numbers in [`bench/RESULTS.md`](bench/RESULTS.md). 1M-node PageRank in 27 s, sum-delta 2.7e-14 |
 | README/code drift               | `unit-tested`                     | `tools/doctest.sh`: 5 checks — Quickstart README block diff vs `examples/quickstart.zig`, quickstart binary stdout-regex `communities=N modularity=… fiedler=…`, three `zig build --help` step presence checks (`test`, `bench`, `crossval`) |
 
 ## Gates that would justify a stronger claim
@@ -49,9 +49,16 @@ until both gates above close.
 - **G1 — Scale-tested throughput on real-world graphs.** Run the bench
   surface on canonical large graphs (SNAP `email-Enron`, `web-Google`,
   `roadNet-CA`; Stanford `wiki-Topcats`) and commit `bench/RESULTS.md`
-  with pinned-hardware throughput + memory numbers. Until then,
-  "fast" is unverified beyond the canonical-small-graph tests. Status:
-  `NOT YET CLOSED`.
+  with pinned-hardware throughput + memory numbers. Status:
+  **PARTIAL — CLOSED ON SYNTHETIC ER** (`bench/bench_scale.zig` runs
+  PageRank / directedPageRank / SSSP / BFS / weightedDegree on 100K
+  and 1M-node Erdős–Rényi graphs with invariant assertions; numbers
+  pinned in [`bench/RESULTS.md`](bench/RESULTS.md)). **STILL OPEN** for
+  power-law graphs (SNAP `web-Google`, `roadNet-CA`) — ER has
+  logarithmic diameter, web/road have power-law degree distribution
+  and longer diameter, so PageRank convergence rate is sensitive to
+  the difference. The synthetic-ER bench documents the *cost* surface
+  at scale; the power-law gate documents the *convergence* surface.
 - **G2 — Soak time + downstream user.** ≥30 days of the library being
   imported by a real downstream system (a sovereign-stack research
   pipeline, the `steam` NYISO engine, a `Work/stax` graph job — anything
