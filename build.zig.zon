@@ -1,14 +1,17 @@
 .{
     .name = .graph,
-    .version = "1.1.0",
+    .version = "1.2.0",
     .fingerprint = 0x94505dcba72e82f,
     .minimum_zig_version = "0.16.0",
     .paths = .{
         "src",
+        "examples",
+        "tools",
         "build.zig",
         "build.zig.zon",
         "README.md",
         "CHANGELOG.md",
+        "STATUS.md",
         "LICENSE",
     },
     .dependencies = .{},

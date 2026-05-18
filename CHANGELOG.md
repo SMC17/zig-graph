@@ -5,6 +5,122 @@ All notable changes to `zig-graph` are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-05-18
+
+### Added
+- **Line coverage measurement: 86.98% on src/* (394/453 lines)** across
+  all 5 source files: `root.zig` 94.20%, `community.zig` 93.55%,
+  `centrality.zig` 81.16%, `traversal.zig` 81.20%, `spectral.zig` 76.74%.
+  Adopts the zig-cobs v1.2.0 coverage-driver pattern, with one
+  adaptation for zig-graph's multi-file module structure:
+  - `examples/coverage_driver.zig` (new) — exercises every public
+    function (`Graph.init/deinit/addEdge`, `weightedDegree`,
+    `pagerank`/`directedPagerank`, `eigenvectorCentrality`,
+    `betweennessCentrality`, `closenessCentrality`, `fiedler` family,
+    `louvain`, `modularity`, `cutEdges`, `conductance`,
+    `bfs`/`dfs`/`sssp`/`bfsPath`, `buildAdjacency`/
+    `buildDirectedAdjacency`) + both error variants (`NodeIndexOutOfRange`,
+    `PartitionSizeMismatch`).
+  - `tools/coverage.sh` (new) — uses `-Doptimize=ReleaseSafe` instead
+    of the Debug default. **Tooling note:** Debug-mode DWARF on Zig 0.16
+    + the nixpkgs kcov build silently fails to capture line coverage
+    on multi-file modules with named-imports (driver imports `graph`,
+    root.zig re-exports four sibling modules). ReleaseSafe keeps the
+    assertion checks + emits DWARF in a layout kcov reads cleanly.
+    `--include-pattern` lists all 5 source filenames explicitly.
+  - `build.zig` — new `coverage-driver` step.
+  - `.github/workflows/ci.yml` — new `line-coverage (kcov)` job.
+- README + status now name `coverage-measured` (86.98%, 5 files).
+
+### Toolchain rationale (extends the zig-cobs v1.2.0 note)
+- Single-file modules (zig-cobs's `root.zig` only) capture cleanly under
+  Debug. Multi-file modules need ReleaseSafe to give kcov DWARF it can
+  process. zig-cobs uses Debug; zig-graph + (likely) other multi-file
+  fleet repos use ReleaseSafe.
+- The Zig 0.16 test runner's debug-info layout itself doesn't surface
+  line-coverage to kcov regardless of optimize level — the coverage-
+  driver-as-plain-exe pattern remains required.
+
+## [Unreleased]
+
+### Honesty correction — 2026-05-15
+
+Prior `v1.0` / `v1.1` / "production-grade hygiene milestone" /
+"full algorithm surface" framing was a Type-I error class per the
+no-premature-production-claims doctrine:
+
+- **Zig itself is on 0.16, not 1.0.** No Zig library can credibly claim
+  API stability beyond "stable on Zig 0.16 today" until the language
+  itself ships 1.0. The v1.x git tags are honored for changelog
+  continuity, but every reader should treat this as **pre-1.0 in semver
+  spirit** until both that gate and a real-deployment gate close.
+- **Zero production deployment exists.** No real-traffic operation, no
+  soak time, no incident history. The hygiene work
+  (LICENSE / SECURITY / CONTRIBUTING / CI / CODE_OF_CONDUCT / dependabot
+  / CODEOWNERS) is real. The production claim it implied **wasn't
+  earned** — and the numerical surface in particular still has at
+  least one real-narrow-tolerance mutation survivor on
+  `eigenvectorCentrality` (`M05`) honestly classified rather than
+  closed.
+
+Going forward, the AGENT_HARNESS proof vocabulary (`scaffold` /
+`compiled` / `unit-tested` / `integration-tested` / `audited` /
+`benchmarked` / `hardware-verified`) is used strictly. See `STATUS.md`
+for the per-component proof index + the gates (G1 scale-tested
+throughput on SNAP-class graphs + a committed `bench/RESULTS.md`,
+G2 soak time + downstream user, G3 independent numerics review,
+G4 external-reference cross-val for Fiedler, G5 Zig 1.0) that would
+justify a stronger claim.
+
+### Added
+- Mutation-testing harness (`tools/mutation-test.sh`) applying 14 hand-picked
+  operators across `src/{root, spectral, community, centrality}.zig`. Targets
+  the numerical-algorithm code that the cross-validation suite probes but
+  doesn't fully kill: PageRank damping sign + base mass, eigenvector
+  power-iteration norm check, Fiedler Rayleigh-quotient cross-term
+  coefficient, Louvain self-loop weighted-degree coefficient, Brandes
+  betweenness undirected-halving and recurrence base case. Result on this
+  commit: **11 killed / 3 survived (78.6%)** with all three survivors
+  honestly classified:
+  * `M05 eigenvectorCentrality iterations halved` — real-narrow gap; the
+    1e-4 cross-val tolerance is just loose enough to admit 16 power-iteration
+    steps where 32 is the default. Not a real algorithm bug.
+  * `M09 Fiedler tau drops +1 safety margin` — equivalent mutant; the
+    deflation step removes the all-ones mode regardless of tau as long as
+    2·max_deg ≥ λ_max(L), which holds by Gershgorin.
+  * `M11 Louvain best-gain comparator > to >=` — equivalent mutant for
+    floating-point inputs; the boundary `gain_rel == best_gain + tolerance`
+    is a measure-zero event on real graphs.
+- New regression test in `src/community.zig`:
+  `louvain self-loop weighted-degree: heavy self-loop forces singleton`.
+  Constructs a barbell-6 with a heavy self-loop (weight 5) on node 0 and
+  asserts that node 0 forms its own community (the modularity-optimal
+  partition under correct undirected-self-loop degree accounting). Kills
+  mutation `M12 (self-loop degree contribution 2.0 -> 1.0)`, which silently
+  passed under the previous test suite because no Louvain test exercised
+  self-loops.
+
+- Cross-validation suite (`tests/crossval_test.zig`, `zig build crossval`)
+  comparing zig-graph against networkx 3.6.1 + closed-form references on
+  Zachary's Karate Club (weighted), Petersen graph, P_5, C_6, K_5. Observed
+  deltas on weighted karate: PageRank 9.6e-12, eigenvector centrality
+  1.1e-15, modularity / conductance / cut size exact, Louvain Q = 0.444904
+  matching networkx weighted-louvain best-of-50-seeds (0.444904). 14 tests;
+  wired into `zig build test` so the external-reference contract holds in CI.
+- Directed PageRank cross-validation extends the suite to `directedPagerank`
+  (previously audited only by internal invariants). References generated via
+  `nx.pagerank(DiGraph(...), alpha=0.85, tol=1e-12, max_iter=2000)` on four
+  canonical directed graphs: (i) inbound directed star (5 leaves → 1 center),
+  (ii) directed cycle C_5 (rotational symmetry → uniform 0.2), (iii) 7-node
+  fully asymmetric DiGraph with a sink and a back-edge, (iv) directed perfect
+  binary tree (4 leaf sinks — exercises dangling-mass redistribution). Max
+  observed delta vs networkx across all four: 1.02e-12 (star), 0 (cycle,
+  closed-form), 5.09e-13 (asym), 1.92e-13 (binary tree). Five new tests
+  (4 hard gates + 1 audit summary), test count 64 → 69.
+
+### Changed
+- Test count: 69 → 70 (added the self-loop Louvain regression described above).
+
 ## [1.1.0] — 2026-05-13
 
 **Full algorithm surface.** Adds the seven algorithms the v0.1 README
