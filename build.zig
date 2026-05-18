@@ -110,6 +110,26 @@ pub fn build(b: *std.Build) void {
         bench_step.dependOn(&run_bench.step);
     }
 
+    // Scale benchmark — separate step (`zig build bench-scale`) so the
+    // regular `bench` umbrella stays under a minute. The scale bench
+    // builds 100K and 1M-node ER graphs (~320 MB peak RSS at 1M) and
+    // runs PageRank / directedPageRank / SSSP / BFS / weightedDegree
+    // with invariant assertions at scale. Closes the STATUS.md G1 gate.
+    const bench_scale_mod = b.createModule(.{
+        .root_source_file = b.path("bench/bench_scale.zig"),
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    bench_scale_mod.addImport("graph", mod);
+    const bench_scale_exe = b.addExecutable(.{
+        .name = "bench-scale",
+        .root_module = bench_scale_mod,
+    });
+    const run_bench_scale = b.addRunArtifact(bench_scale_exe);
+    run_bench_scale.has_side_effects = true;
+    const bench_scale_step = b.step("bench-scale", "Run scale benchmarks (100K + 1M-node ER graphs) with invariant checks");
+    bench_scale_step.dependOn(&run_bench_scale.step);
+
     // Coverage driver — plain executable that exercises every public API
     // + every error path so kcov can measure src/root.zig line coverage.
     // Per the zig-cobs v1.2.0 toolchain note: Zig 0.16 test-runner

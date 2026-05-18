@@ -337,6 +337,21 @@ Six benchmarks ship under `bench/`:
   nodes. Reports the converged Fiedler value + iteration count alongside
   timing.
 
+A seventh **scale benchmark** lives behind a separate `zig build bench-scale`
+step (kept off the regular `bench` umbrella because the 1M-node graph
+takes ~30 s and ~320 MB peak RSS):
+
+- `bench_scale.zig` — 100K-node and 1M-node Erdős–Rényi graphs
+  (avg degree ~20) running `pagerank`, `directedPagerank`, `bfs`,
+  `sssp` (Dijkstra), and `weightedDegree`, each with its
+  algorithm-level invariant asserted at scale. The process exits
+  non-zero if any invariant breaks — the bench doubles as a
+  scale-correctness regression test.
+  **Pinned-hardware numbers** in [`bench/RESULTS.md`](bench/RESULTS.md):
+  PageRank on 1M nodes / 10M edges in 27 s, sum-to-1 invariant
+  delta 2.7e-14 (Intel Core i7-1065G7 @ 1.30 GHz, Linux, Zig 0.16,
+  laptop with concurrent agents).
+
 Output is parseable `key=value` whitespace-separated lines so external
 collectors can scrape them. Timing uses
 `std.os.linux.clock_gettime(.MONOTONIC, &ts)` directly — `std.time.Timer`
