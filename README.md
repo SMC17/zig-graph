@@ -387,7 +387,7 @@ quiet machine for steady measurements. Fiedler runs on disconnected
 Erdős–Rényi random graphs converge to ≈ 0 — that is correct (a graph
 with `k` components has `k` zero eigenvalues), not a bug.
 
-## A fleet component — Quantitative Mercantilism / Verifiable Fleet Engineering
+## A fleet component — composable, replaceable, auditable
 
 `zig-graph` is one hull section in a fleet of small, correctness-first
 Zig libraries. The Graph type is bounded (one struct, three fields, one
