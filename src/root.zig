@@ -64,6 +64,10 @@ pub const LouvainResult = community.LouvainResult;
 pub const louvain = community.louvain;
 pub const modularity = community.modularity;
 
+// ---- flow re-exports ----
+const flow = @import("flow.zig");
+pub const maxFlowEdmondsKarp = flow.maxFlowEdmondsKarp;
+
 pub const Edge = struct {
     source: usize,
     target: usize,
