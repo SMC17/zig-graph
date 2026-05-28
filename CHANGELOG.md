@@ -43,6 +43,22 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — 2026-05-27
+- License relicensed from MIT to **AGPL-3.0**. Tier 1 push to public.
+- README rewritten around an operations table (operation + complexity +
+  reference paper + proof level per algorithm). Pre-1.0 vocabulary
+  throughout. Classical citations added (Dijkstra 1959, Tarjan 1972,
+  Brandes 2001, Fiedler 1973, Bonacich 1972, Page et al. 1999,
+  Blondel et al. 2008, Newman 2006, Wasserman & Faust 1994, Chung 1997,
+  Edmonds & Karp 1972, Moore 1959, Tinney & Walker 1967).
+- `maxFlowEdmondsKarp` is now documented in the operations table + API
+  section (was added in `f8b3bef` but not surfaced in the canonical
+  README).
+- `CONTRIBUTING.md` rewritten for graph-library context (the prior text
+  was templated from the byte-stuffing library it was forked from).
+- Removed `.canonical-readme.md` (private-mirror artefact) and replaced
+  the public stub `README.md` with the full canonical document.
+
 ### Honesty correction — 2026-05-15
 
 Prior `v1.0` / `v1.1` / "production-grade hygiene milestone" /
@@ -185,7 +201,7 @@ These remain deliberate. See README "Out of scope for v1.0".
 
 ## [0.1.0] — 2026-05-13
 
-Initial release. Extracted from a sovereign NYISO research codebase where the
+Initial release. Extracted from a research codebase where the
 algorithms were tangled with domain-specific node and edge schemas; this
 library exposes only the schema-free primitives.
 
