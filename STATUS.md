@@ -60,10 +60,9 @@ until both gates above close.
   the difference. The synthetic-ER bench documents the *cost* surface
   at scale; the power-law gate documents the *convergence* surface.
 - **G2 — Soak time + downstream user.** ≥30 days of the library being
-  imported by a real downstream system (a sovereign-stack research
-  pipeline, the `steam` NYISO engine, a `Work/stax` graph job — anything
-  that runs `pagerank` / `louvain` / `fiedler` in anger), with the
-  numerics holding up under non-toy inputs. Status: `NOT YET CLOSED`.
+  imported by a real downstream system that runs `pagerank` / `louvain`
+  / `fiedler` in anger, with the numerics holding up under non-toy
+  inputs. Status: `NOT YET CLOSED`.
 - **G3 — Independent numerics review.** A second pair of eyes —
   ideally someone with a network-science or numerical-linear-algebra
   background — on the Fiedler deflation choice, the Louvain

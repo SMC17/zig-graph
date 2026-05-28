@@ -28,24 +28,24 @@ pub fn maxFlowEdmondsKarp(
     for (adj) |*list| list.* = std.ArrayList(usize).empty;
 
     // Initialize capacities and flow
-    var capacity = std.AutoHashMap(struct {usize, usize}, f64).init(allocator);
+    var capacity = std.AutoHashMap(struct { usize, usize }, f64).init(allocator);
     defer capacity.deinit();
 
-    var flow_map = std.AutoHashMap(struct {usize, usize}, f64).init(allocator);
+    var flow_map = std.AutoHashMap(struct { usize, usize }, f64).init(allocator);
     defer flow_map.deinit();
 
     for (graph.edges.items) |edge| {
         try adj[edge.source].append(allocator, edge.target);
         try adj[edge.target].append(allocator, edge.source); // Add reverse edge for residual graph
-        
-        const cap = capacity.get(.{edge.source, edge.target}) orelse 0.0;
-        try capacity.put(.{edge.source, edge.target}, cap + edge.weight);
-        
-        if (!capacity.contains(.{edge.target, edge.source})) {
-            try capacity.put(.{edge.target, edge.source}, 0.0);
+
+        const cap = capacity.get(.{ edge.source, edge.target }) orelse 0.0;
+        try capacity.put(.{ edge.source, edge.target }, cap + edge.weight);
+
+        if (!capacity.contains(.{ edge.target, edge.source })) {
+            try capacity.put(.{ edge.target, edge.source }, 0.0);
         }
-        try flow_map.put(.{edge.source, edge.target}, 0.0);
-        try flow_map.put(.{edge.target, edge.source}, 0.0);
+        try flow_map.put(.{ edge.source, edge.target }, 0.0);
+        try flow_map.put(.{ edge.target, edge.source }, 0.0);
     }
 
     var parent = try allocator.alloc(?usize, graph.node_count);
@@ -75,8 +75,8 @@ pub fn maxFlowEdmondsKarp(
 
             for (adj[u].items) |v| {
                 if (parent[v] == null) {
-                    const cap = capacity.get(.{u, v}) orelse 0.0;
-                    const f = flow_map.get(.{u, v}) orelse 0.0;
+                    const cap = capacity.get(.{ u, v }) orelse 0.0;
+                    const f = flow_map.get(.{ u, v }) orelse 0.0;
                     if (cap - f > 0) {
                         parent[v] = u;
                         try queue.append(allocator, v);
@@ -92,8 +92,8 @@ pub fn maxFlowEdmondsKarp(
         var s: usize = sink;
         while (s != source) {
             const p = parent[s].?;
-            const cap = capacity.get(.{p, s}) orelse 0.0;
-            const f = flow_map.get(.{p, s}) orelse 0.0;
+            const cap = capacity.get(.{ p, s }) orelse 0.0;
+            const f = flow_map.get(.{ p, s }) orelse 0.0;
             path_flow = @min(path_flow, cap - f);
             s = p;
         }
@@ -105,10 +105,10 @@ pub fn maxFlowEdmondsKarp(
         var v: usize = sink;
         while (v != source) {
             const u = parent[v].?;
-            const f_uv = flow_map.get(.{u, v}) orelse 0.0;
-            const f_vu = flow_map.get(.{v, u}) orelse 0.0;
-            try flow_map.put(.{u, v}, f_uv + path_flow);
-            try flow_map.put(.{v, u}, f_vu - path_flow);
+            const f_uv = flow_map.get(.{ u, v }) orelse 0.0;
+            const f_vu = flow_map.get(.{ v, u }) orelse 0.0;
+            try flow_map.put(.{ u, v }, f_uv + path_flow);
+            try flow_map.put(.{ v, u }, f_vu - path_flow);
             v = u;
         }
     }
