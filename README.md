@@ -1,10 +1,42 @@
 # zig-graph
 
+> Graph primitives in Zig 0.16. 70/70 tests including networkx 3.6.1 cross-validation. Foundational substrate for downstream analysis repos.
+
+[![CI](https://github.com/SMC17/zig-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/SMC17/zig-graph/actions)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL_3.0-blue.svg)](LICENSE)
+[![Zig: 0.16](https://img.shields.io/badge/Zig-0.16-orange.svg)](https://ziglang.org/)
+[![Tests: 70/70](https://img.shields.io/badge/tests-70%2F70-success.svg)](#tests)
+[![Cross-check: networkx 3.6.1](https://img.shields.io/badge/cross--check-networkx%203.6.1-blue.svg)](#tests)
+
 Proof level: `unit-tested` + `audited` (cross-validated vs networkx 3.6.1; mutation-tested 11/14 killed)
 
 Sparse graph algorithms in pure Zig — traversal, centrality, spectral, community, and max-flow primitives over a 3-field `Graph` type with caller-owned results and no hidden allocation.
 
 `v0.x` release. Pre-1.0 in semver spirit: Zig itself is on 0.16, and the library has no production-deployment soak time. See [`STATUS.md`](STATUS.md) for the per-component proof index and the open gates.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    A[Graph adjacency] --> B[Traversal<br/>BFS · DFS · Dijkstra]
+    A --> C[Centrality<br/>eigenvector · PageRank<br/>Brandes betweenness · closeness]
+    A --> D[Spectral<br/>Fiedler value/vector]
+    A --> E[Community<br/>Louvain · Newman modularity]
+    A --> F[Partition quality<br/>cutEdges · conductance]
+    A --> G[Flow<br/>Edmonds-Karp max-flow]
+
+    H[Downstream consumers] -.uses.-> C
+    H -.uses.-> G
+    H -.includes.-> I[oceanman<br/>cable network SPOF + chokepoint]
+    click I "https://github.com/SMC17/oceanman"
+```
+
+## Downstream consumers
+
+- [`SMC17/oceanman`](https://github.com/SMC17/oceanman) — submarine
+  cable knowledge base; uses `zig-graph` for chokepoint + SPOF
+  analysis on the global cable network alongside `zig-h3` for
+  cable-landing geospatial indexing.
 
 ## Operations
 
