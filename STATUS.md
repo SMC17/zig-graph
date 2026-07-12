@@ -1,7 +1,7 @@
 # zig-graph status
 
 Last touched: 2026-05-15
-Last green: 2026-07-11 (`zig build test --summary all`)
+Last green: 2026-07-12 (`zig build test --summary all`)
 
 ## Honest version posture
 
