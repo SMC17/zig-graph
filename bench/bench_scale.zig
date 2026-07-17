@@ -183,12 +183,11 @@ pub fn main() !void {
             std.debug.print(
                 "bench=pagerank size={s} nodes={d} edges={d} iters={d} ns={d} ms={d} ns_per_node_per_iter={d} sum_delta={e:.6} finite={s} invariant={s}\n",
                 .{
-                    s.label,    s.nodes,
-                    s.edges,    pagerank_iters,
-                    dt,         dt / std.time.ns_per_ms,
-                    dt / (s.nodes * pagerank_iters),
-                    sum_delta,  if (any_nonfinite) "FAIL" else "OK",
-                    if (ok and !any_nonfinite) "OK" else "FAIL",
+                    s.label,                             s.nodes,
+                    s.edges,                             pagerank_iters,
+                    dt,                                  dt / std.time.ns_per_ms,
+                    dt / (s.nodes * pagerank_iters),     sum_delta,
+                    if (any_nonfinite) "FAIL" else "OK", if (ok and !any_nonfinite) "OK" else "FAIL",
                 },
             );
         }
@@ -219,11 +218,11 @@ pub fn main() !void {
             std.debug.print(
                 "bench=directedPagerank size={s} nodes={d} edges={d} iters={d} ns={d} ms={d} ns_per_node_per_iter={d} sum_delta={e:.6} tol={e:.6} finite={s} invariant={s}\n",
                 .{
-                    s.label,                              s.nodes,
-                    s.edges,                              pagerank_iters,
-                    dt,                                   dt / std.time.ns_per_ms,
-                    dt / (s.nodes * pagerank_iters),      sum_delta,
-                    tol,                                  if (any_nonfinite) "FAIL" else "OK",
+                    s.label,                                     s.nodes,
+                    s.edges,                                     pagerank_iters,
+                    dt,                                          dt / std.time.ns_per_ms,
+                    dt / (s.nodes * pagerank_iters),             sum_delta,
+                    tol,                                         if (any_nonfinite) "FAIL" else "OK",
                     if (ok and !any_nonfinite) "OK" else "FAIL",
                 },
             );
@@ -275,11 +274,9 @@ pub fn main() !void {
             std.debug.print(
                 "bench=sssp size={s} nodes={d} edges={d} ns={d} ms={d} dist_len={d} dist0={d} any_nan={s} invariant={s}\n",
                 .{
-                    s.label, s.nodes,           s.edges,
-                    dt,      dt / std.time.ns_per_ms,
-                    dist.len, dist[0],
-                    if (any_nan) "true" else "false",
-                    if (ok) "OK" else "FAIL",
+                    s.label, s.nodes,                          s.edges,
+                    dt,      dt / std.time.ns_per_ms,          dist.len,
+                    dist[0], if (any_nan) "true" else "false", if (ok) "OK" else "FAIL",
                 },
             );
         }
