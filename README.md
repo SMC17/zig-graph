@@ -3,7 +3,7 @@
 > Graph primitives in Zig 0.16. 70/70 tests including networkx 3.6.1 cross-validation. Foundational substrate for downstream analysis repos.
 
 [![CI](https://github.com/SMC17/zig-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/SMC17/zig-graph/actions)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL_3.0-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Zig: 0.16](https://img.shields.io/badge/Zig-0.16-orange.svg)](https://ziglang.org/)
 [![Tests: 70/70](https://img.shields.io/badge/tests-70%2F70-success.svg)](#tests)
 [![Cross-check: networkx 3.6.1](https://img.shields.io/badge/cross--check-networkx%203.6.1-blue.svg)](#tests)
