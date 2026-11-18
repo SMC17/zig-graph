@@ -1,5 +1,7 @@
 # zig-graph
 
+**[Status](STATUS.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Issues](https://github.com/SMC17/zig-graph/issues) · [Public roadmap](https://github.com/users/SMC17/projects/16)**
+
 > Graph primitives in Zig 0.16. 70/70 tests including networkx 3.6.1 cross-validation. Foundational substrate for downstream analysis repos.
 
 [![CI](https://github.com/SMC17/zig-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/SMC17/zig-graph/actions)
